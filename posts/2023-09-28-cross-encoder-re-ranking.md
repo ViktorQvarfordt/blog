@@ -1,4 +1,4 @@
-Published at: https://www.linkedin.com/pulse/cross-encoder-vector-search-re-ranking-viktor-qvarfordt-fnmzf/?trackingId=hdrZDO%2BDRempRP9Hy2PY1A%3D%3D
+[Published LinkedIn article](https://www.linkedin.com/pulse/cross-encoder-vector-search-re-ranking-viktor-qvarfordt-fnmzf/?trackingId=hdrZDO%2BDRempRP9Hy2PY1A%3D%3D)
 
 ![](../assets/retrieval.png)
 
