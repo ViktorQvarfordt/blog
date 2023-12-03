@@ -1,4 +1,4 @@
-# How to isolate data for SaaS enterprise with Postgres
+# Postgres Data Isolation
 
 ### What?
 
@@ -6,15 +6,15 @@ When building SaaS systems, customer data isolation is essential. This can be ac
 
 This article outlines different approaches, their pros and cons, and gives reference implementations using Postgres and TypeScript.
 
-The Row Level Security approach strikes good balance between security and operational overhead.
+Different projects require different degree of isolation. The Row Level Security approach strikes good balance between security and operational overhead.
 
 ### Why?
 
 The goal of data isolation is to minimize the risk of data leakage. This includes both the case of an attacker getting (partial) access and plain bugs that don't apply permission filtering correctly.
 
-Many projects use explicit WHERE checks in queries for filtering data, but this quickly gets unmaintainable and has security vulnerabilities.
+Many projects start out using explicit WHERE checks in queries for filtering data, but as the application grows this gets unmaintainable and has security vulnerabilities.
 
-Enterprise customers, called tenants, expect their data to be more strictly isolated from other tenants.
+Enterprise accounts (tenants) require strict data isolation. As engineers we need to find the right balance between security and operational overhead.
 
 ### How?
 
@@ -30,7 +30,7 @@ We will cover these methods of data isolation per tenant. Ordered from less stri
 
 ## Understanding the differences
 
-The essential use case is captured by these tables:
+The essential use case is captured by these tables. Keep them in mind as we go through the different approaches.
 
 ```sql
 CREATE TABLE users (
@@ -61,7 +61,7 @@ This approach involves adding a `tenant_id` column to all tables and adding a `W
 
 ### 2. Reusable WITH queries
 
-This approach aims to minimize the risk of forgetting to add the `WHERE` clause to a query by creating WITH statements that are reused across queries. This assumes one is using a query builder or ORM that supports reusable queries such as Knex and jOOQ. This translates to queries like this:
+This approach aims to minimize the risk of forgetting to add the `WHERE` clause to a query by creating WITH statements that are reused across queries. This assumes one is using a query builder or ORM that supports reusable queries such as Knex or jOOQ. This translates to queries like this:
 
 ```sql
 WITH tenant_items AS (
@@ -96,7 +96,7 @@ The idea is that the VIEW is created once and reused across queries.
 
 ### 4. Row level security (RLS)
 
-Postgres has the concept of [row level security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) which allows to define granular access rights per rows that are applied to all queries.
+This approach uses the Postgres feature [Row Level Security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) which allows to define granular access rights per row. The policies are automatically applied to all queries.
 
 ```sql
 ALTER TABLE items ENABLE ROW LEVEL SECURITY;
@@ -116,7 +116,7 @@ SELECT * FROM users WHERE tenant_id = current_setting('app.current_tenant_id');
 
 The `current_tenant_id` is managed by the db client in application code. See the reference implementation at the end of this article for more details.
 
-**Pros:** Gives stric data isolation guarantees automatically after policies have been set up. Access control can be very granular.
+**Pros:** Gives stric data isolation guarantees automatically after policies have been set up. Access control can be very granular; different policies can be specified for SELECT, INSERT, UPDATE and DELETE.
 
 **Cons:** Has a performance impact on queries since the RLS policies are evaluated for each row. Application logic is spread out across the database and application code, which makes it harder to reason about.
 
@@ -137,12 +137,12 @@ SET search_path TO tenant_123;
 
 **Pros:** Gives a strict data isolation across schemas. Since tables are separated, indexes are smaller and therefore both inserts and selects are faster compared to having all data in one table.
 
-**Cons:** The data isolation is not granular, not possible to isolate data based on user_id. Larger operational overhead than the previous approaches. Keeping tables in sync across schemas requires explicit management (eg. when running migrations).
+**Cons:** The data isolation is not granular, not possible to isolate data based on `user_id`. Larger operational overhead than the previous approaches. Keeping table definitions in sync across schemas requires explicit management. Eg. when running migrations, the `items` table needs to be migrated separately for each schema.
 
 
 ### 6. Separate logical databases
 
-This approach involves creating separate logical databases for each tenant. There is no need for the `tenant_id` column.
+This approach involves creating separate logical databases for each tenant.
 
 ```sql
 CREATE DATABASE tenant_123;
@@ -157,7 +157,7 @@ The connection to a logical database is explicit. To connect to another database
 
 ### 7. Separate physical database instances
 
-This approach involves running a separate database instance for each tenant. There is no need for the `tenant_id` column.
+This approach involves running a separate database instance for each tenant.
 
 **Pros:** Possible to have different access rights for different engineers and subsystems, eg. separate GCP projects. Possible to have independent downtime across databases, independent resource scaling, and independent regional deployments.
 
