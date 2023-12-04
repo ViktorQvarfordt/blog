@@ -1,3 +1,7 @@
+[Published LinkedIn article](https://www.linkedin.com/pulse/postgres-data-isolation-row-level-security-viktor-qvarfordt-nc3qf)
+
+![](../assets/postgres-data-isolation.png)
+
 # Postgres data isolation and row level security
 
 ### What?
