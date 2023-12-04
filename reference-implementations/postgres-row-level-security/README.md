@@ -1,7 +1,5 @@
 # Running the reference implementation
 
-## Setup
-
 Sart the database:
 
 ``` sh
@@ -14,7 +12,7 @@ Initialise the database:
 psql postgresql://postgres:postgres@127.0.0.1:5432/postgres -f db.sql
 ```
 
-## Run
+Run:
 
 ```sh
 pnpm tsx main.ts
