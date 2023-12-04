@@ -28,6 +28,8 @@ We will cover these methods of data isolation per tenant. Ordered from less stri
 6. **Logical database separation**
 7. **Physical database instance separation**
 
+Approach 1 is very basic and gives no real guarantees. Approaches 2-3 can give ok security guarantees if used correctly in application code. Approach 4 gives strict data isolation guarantees with minimal operational overhead. Approaches 5-7 gives deep isolation and by using separate database users can limit the blast radius if an attacker gets in, but comes with larger operational overhead.
+
 ## Understanding the differences
 
 The essential use case is captured by these tables. Keep them in mind as we go through the different approaches and mentally add any role based access control (RBAC) requirements.
@@ -114,7 +116,7 @@ SELECT * FROM users;
 SELECT * FROM users WHERE tenant_id = current_setting('app.current_tenant_id');
 ```
 
-The `current_tenant_id` is managed by the db client in application code. See the reference implementation at the end of this article for more details.
+The `current_tenant_id` is managed by the db client in application code and queries need to run as a database user without superuser privileges. See the reference implementation at the end of this article for more details.
 
 **Pros:** Gives stric data isolation guarantees automatically after policies have been set up. Access control can be very granular; different policies can be specified for `SELECT`, `INSERT`, `UPDATE` and `DELETE`.
 
