@@ -1,4 +1,4 @@
-# Postgres Data Isolation
+# Postgres data isolation and row level security
 
 ### What?
 
@@ -12,7 +12,7 @@ Different projects require different degree of isolation. The Row Level Security
 
 The goal of data isolation is to minimize the risk of data leakage. This includes both the case of an attacker gaining (partial) access and plain bugs that don't apply permission filtering correctly.
 
-Many projects start out using explicit `WHERE` clauses in queries for filtering data, but as the application grows this gets unmaintainable and has security vulnerabilities.
+Many projects start out using explicit WHERE clauses in queries for filtering data, but as the application grows this gets unmaintainable and has security vulnerabilities.
 
 Enterprise accounts (tenants) require strict data isolation. As engineers we need to find the right balance between security and operational overhead.
 
@@ -20,9 +20,9 @@ Enterprise accounts (tenants) require strict data isolation. As engineers we nee
 
 We will cover these methods of data isolation per tenant. Ordered from less strict to more strict (and less operational overhead to more).
 
-1. **Explicit `WHERE` clauses**
-3. **Reusable `WITH` queries**
-2. **Temporary `VIEW`s**
+1. **Explicit WHERE clauses**
+3. **Reusable WITH queries**
+2. **Temporary VIEWs**
 4. **Row Level Security**
 5. **Schema separation**
 6. **Logical database separation**
@@ -50,18 +50,18 @@ CREATE TABLE item_users (
 );
 ```
 
-### 1. Explicit `WHERE` clauses
+### 1. Explicit WHERE clauses
 
 In essence this approach involves adding `WHERE tenant_id = {tenantId}` to all queries. In the same way `user_id` and RBAC requirements are added.
 
 **Pros:** The simplest approach to get started with.
 
-**Cons:** Permission checks are duplicated across all queries and joins, which gets hard to maintain. It is easy to forget to add the necessary `WHERE` clause to a query, which can lead to data leakage.
+**Cons:** Permission checks are duplicated across all queries and joins, which gets hard to maintain. It is easy to forget to add the necessary WHERE clause to a query, which can lead to data leakage.
 
 
-### 2. Reusable `WITH` queries
+### 2. Reusable WITH queries
 
-This approach aims to minimize the risk of forgetting to add the `WHERE` clause to a query by creating `WITH` statements that are reused across queries. This assumes one is using a query builder or ORM that supports reusable queries such as Knex or jOOQ. This translates to queries like this:
+This approach aims to minimize the risk of forgetting to add the WHERE clause to a query by creating WITH statements that are reused across queries. This assumes one is using a query builder or ORM that supports reusable queries such as Knex or jOOQ. This translates to queries like this:
 
 ```sql
 WITH tenant_items AS (
@@ -72,12 +72,12 @@ SELECT * FROM tenant_items;
 
 **Pros:** Declares the permission check once and reuses it across queries.
 
-**Cons:** Requires a query builder. A `WITH` statement cannot be used across multiple queries (eg. in a transaction).
+**Cons:** Requires a query builder. A WITH statement cannot be used across multiple queries (eg. in a transaction).
 
 
-### 3. Temporary `VIEW`s in queries
+### 3. Temporary VIEWs in queries
 
-This approach is similar to `WITH` queries, but instead uses temporary views. This translates to queries like this:
+This approach is similar to WITH queries, but instead uses temporary views. This translates to queries like this:
 
 ```sql
 CREATE TEMPORARY VIEW tenant_items AS (
