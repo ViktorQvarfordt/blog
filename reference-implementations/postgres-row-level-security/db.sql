@@ -47,6 +47,8 @@ USING (
 );
 
 
+-- CREATE RLS DB USER
+
 -- Create a Postgres user without superuser grants.
 -- This user will be subject to the RLS policies,
 -- unlike to the default postgres user that is a superuser.

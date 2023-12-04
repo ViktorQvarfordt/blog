@@ -7,30 +7,10 @@ const pool = new pg.Pool({
 // Wrap the db client to use RLS
 const queryAsUser = async (userId: string, queryStr: string) => {
   const results = await pool.query(`
-    SET SESSION app.current_user_id to '${userId}';
+    SET SESSION app.current_user_id to ${pg.escapeLiteral(userId)};
     ${queryStr}
   `)
   return results[1].rows // The first result is the SET SESSION statement
-}
-
-// This is how you would do it if you were using schema separation.
-// This is just for reference, the db.sql would need to be updated to use this.
-const queryAsTenant = async (tenantId: string, queryStr: string) => {
-  const results = await pool.query(`
-    SET search_path TO 'tenant_${tenantId}', 'public'
-    ${queryStr}
-  `)
-  return results[1].rows
-}
-
-// This combines is how you would do it if you were using schema separation.
-const queryAsTenantAndUser = async (tenantId: string, userId, queryStr: string) => {
-  const results = await pool.query(`
-    SET search_path TO 'tenant_${tenantId}', 'public'
-    SET SESSION app.current_user_id to '${userId}';
-    ${queryStr}
-  `)
-  return results[2].rows
 }
 
 const main = async () => {

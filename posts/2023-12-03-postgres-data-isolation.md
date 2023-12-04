@@ -176,7 +176,7 @@ const pool = new pg.Pool(..)
 // Wrap the db client to use RLS
 const queryAsUser = async (userId: string, queryStr: string) => {
   const results = await pool.query(`
-    SET SESSION app.current_user_id to '${userId}';
+    SET SESSION app.current_user_id to ${pg.escapeLiteral(userId)};
     ${queryStr}
   `)
   return results[1].rows // The first result is the SET SESSION statement
