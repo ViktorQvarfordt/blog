@@ -166,7 +166,7 @@ This approach involves running a separate database instance for each tenant.
 
 ## RLS reference implementation
 
-The full runnable reference implementation can be found on [GitHub](https://github.com/ViktorQvarfordt/blog/tree/main/reference-implementations/postgres-row-level-security). The essence of the implementation is to set the `app.current_tenant_id` and `app.current_user_id` session variables before each query:
+The full runnable reference implementation can be found on [GitHub](https://github.com/ViktorQvarfordt/blog/tree/main/reference-implementations/postgres-row-level-security). The essence of the implementation is to set the session variables for RLS before each query. This example uses only `current_user_id` for simplicity.
 
 ```ts
 import pg from 'pg'

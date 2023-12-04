@@ -1,5 +1,7 @@
 # Running the reference implementation
 
+Check the `db.sql` and `main.ts` files for the implementation.
+
 Sart the database:
 
 ``` sh
