@@ -164,35 +164,36 @@ This approach involves running a separate database instance for each tenant.
 **Cons:** Very large operational overhead and cost.
 
 
-## Reference implementation
+## RLS reference implementation
+
+The full runnable reference implementation can be found on [GitHub](https://github.com/ViktorQvarfordt/blog/tree/main/reference-implementations/postgres-row-level-security). The essence of the implementation is to set the `app.current_tenant_id` and `app.current_user_id` session variables before each query:
 
 ```ts
 import pg from 'pg'
 
 const pool = new pg.Pool(..)
 
+// Wrap the db client to use RLS
 const queryAsUser = async (userId: string, queryStr: string) => {
   const results = await pool.query(`
     SET SESSION app.current_user_id to '${userId}';
     ${queryStr}
   `)
-  return results[1].rows
+  return results[1].rows // The first result is the SET SESSION statement
 }
 
-const queryAsTenant = async (tenantId: string, queryStr: string) => {
-  const results = await pool.query(`
-    SET search_path TO 'tenant_${tenantId}', 'public'
-    ${queryStr}
-  `)
-  return results[1].rows
+const main = async () => {
+  // Use the wrapped db client
+  const result1 = await queryAsUser('1', 'SELECT * FROM items')
+  const result2 = await queryAsUser('2', 'SELECT * FROM items')
+
+  console.log('Rows for user 1:', result1)
+  console.log('Rows for user 2:', result2)
+
+  process.exit()
 }
 
-const queryAsTenantAndUser = async (tenantId: string, userId, queryStr: string) => {
-  const results = await pool.query(`
-    SET search_path TO 'tenant_${tenantId}', 'public'
-    SET SESSION app.current_user_id to '${userId}';
-    ${queryStr}
-  `)
-  return results[2].rows
-}
+main()
 ```
+
+The result from the two queries will be different since the RLS policy filters the rows based on the `current_user_id` session variable.

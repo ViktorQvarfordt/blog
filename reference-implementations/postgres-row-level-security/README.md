@@ -1,3 +1,5 @@
+TODO: Use sql-template-strings
+
 # Running the reference implementation
 
 ## Setup
