@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.1",
+    "@types/pg": "^8.10.9",
+    "tsx": "^4.6.1"
+  }
+}

@@ -6,13 +6,13 @@ When building SaaS systems, customer data isolation is essential. This can be ac
 
 This article outlines different approaches, their pros and cons, and gives reference implementations using Postgres and TypeScript.
 
-Different projects require different degree of isolation. The Row Level Security approach strikes good balance between security and operational overhead.
+Different projects require different degree of isolation. The Row Level Security approach strikes an interesting balance between security and operational overhead.
 
 ### Why?
 
-The goal of data isolation is to minimize the risk of data leakage. This includes both the case of an attacker getting (partial) access and plain bugs that don't apply permission filtering correctly.
+The goal of data isolation is to minimize the risk of data leakage. This includes both the case of an attacker gaining (partial) access and plain bugs that don't apply permission filtering correctly.
 
-Many projects start out using explicit WHERE checks in queries for filtering data, but as the application grows this gets unmaintainable and has security vulnerabilities.
+Many projects start out using explicit `WHERE` clauses in queries for filtering data, but as the application grows this gets unmaintainable and has security vulnerabilities.
 
 Enterprise accounts (tenants) require strict data isolation. As engineers we need to find the right balance between security and operational overhead.
 
@@ -20,17 +20,17 @@ Enterprise accounts (tenants) require strict data isolation. As engineers we nee
 
 We will cover these methods of data isolation per tenant. Ordered from less strict to more strict (and less operational overhead to more).
 
-1. **Explicit WHERE clauses**
-2. **Temporary VIEWs**
-3. **WITH queries**
+1. **Explicit `WHERE` clauses**
+3. **Reusable `WITH` queries**
+2. **Temporary `VIEW`s**
 4. **Row Level Security**
-5. **Separate database schemas**
-6. **Separate logical databases**
-7. **Separate physical database instances**
+5. **Schema separation**
+6. **Logical database separation**
+7. **Physical database instance separation**
 
 ## Understanding the differences
 
-The essential use case is captured by these tables. Keep them in mind as we go through the different approaches.
+The essential use case is captured by these tables. Keep them in mind as we go through the different approaches and mentally add any role based access control (RBAC) requirements.
 
 ```sql
 CREATE TABLE users (
@@ -50,18 +50,18 @@ CREATE TABLE item_users (
 );
 ```
 
-### 1. Explicit WHERE clauses
+### 1. Explicit `WHERE` clauses
 
-This approach involves adding a `tenant_id` column to all tables and adding a `WHERE` clause to all queries.
+In essence this approach involves adding `WHERE tenant_id = {tenantId}` to all queries. In the same way `user_id` and RBAC requirements are added.
 
 **Pros:** The simplest approach to get started with.
 
 **Cons:** Permission checks are duplicated across all queries and joins, which gets hard to maintain. It is easy to forget to add the necessary `WHERE` clause to a query, which can lead to data leakage.
 
 
-### 2. Reusable WITH queries
+### 2. Reusable `WITH` queries
 
-This approach aims to minimize the risk of forgetting to add the `WHERE` clause to a query by creating WITH statements that are reused across queries. This assumes one is using a query builder or ORM that supports reusable queries such as Knex or jOOQ. This translates to queries like this:
+This approach aims to minimize the risk of forgetting to add the `WHERE` clause to a query by creating `WITH` statements that are reused across queries. This assumes one is using a query builder or ORM that supports reusable queries such as Knex or jOOQ. This translates to queries like this:
 
 ```sql
 WITH tenant_items AS (
@@ -72,12 +72,12 @@ SELECT * FROM tenant_items;
 
 **Pros:** Declares the permission check once and reuses it across queries.
 
-**Cons:** Requires a query builder. A WITH statement cannot be used across multiple queries (eg. in a transaction).
+**Cons:** Requires a query builder. A `WITH` statement cannot be used across multiple queries (eg. in a transaction).
 
 
-### 3. Temporary views in queries
+### 3. Temporary `VIEW`s in queries
 
-This approach is similar to WITH queries, but uses temporary views instead. This translates to queries like this:
+This approach is similar to `WITH` queries, but instead uses temporary views. This translates to queries like this:
 
 ```sql
 CREATE TEMPORARY VIEW tenant_items AS (
@@ -116,12 +116,12 @@ SELECT * FROM users WHERE tenant_id = current_setting('app.current_tenant_id');
 
 The `current_tenant_id` is managed by the db client in application code. See the reference implementation at the end of this article for more details.
 
-**Pros:** Gives stric data isolation guarantees automatically after policies have been set up. Access control can be very granular; different policies can be specified for SELECT, INSERT, UPDATE and DELETE.
+**Pros:** Gives stric data isolation guarantees automatically after policies have been set up. Access control can be very granular; different policies can be specified for `SELECT`, `INSERT`, `UPDATE` and `DELETE`.
 
 **Cons:** Has a performance impact on queries since the RLS policies are evaluated for each row. Application logic is spread out across the database and application code, which makes it harder to reason about.
 
 
-### 5. Separate database schemas
+### 5. Schemas separation
 
 Postgres has the concept of [schemas](https://www.postgresql.org/docs/current/ddl-schemas.html), which are like namespaces for tables. This approach involves creating one schema for each tenant. There is no need for the `tenant_id` column.
 
@@ -140,7 +140,7 @@ SET search_path TO tenant_123;
 **Cons:** The data isolation is not granular, not possible to isolate data based on `user_id`. Larger operational overhead than the previous approaches. Keeping table definitions in sync across schemas requires explicit management. Eg. when running migrations, the `items` table needs to be migrated separately for each schema.
 
 
-### 6. Separate logical databases
+### 6. Logical database separation
 
 This approach involves creating separate logical databases for each tenant.
 
@@ -155,7 +155,7 @@ The connection to a logical database is explicit. To connect to another database
 **Cons:** Large operational overhead. Not possible to share database extensions, roles or policies.
 
 
-### 7. Separate physical database instances
+### 7. Physical database instance separation
 
 This approach involves running a separate database instance for each tenant.
 
@@ -164,36 +164,35 @@ This approach involves running a separate database instance for each tenant.
 **Cons:** Very large operational overhead and cost.
 
 
-## RLS demo
+## Reference implementation
 
-Start a local Postgres instance via docker:
+```ts
+import pg from 'pg'
 
-``` sh
-docker run --rm -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:15-alpine
+const pool = new pg.Pool(..)
+
+const queryAsUser = async (userId: string, queryStr: string) => {
+  const results = await pool.query(`
+    SET SESSION app.current_user_id to '${userId}';
+    ${queryStr}
+  `)
+  return results[1].rows
+}
+
+const queryAsTenant = async (tenantId: string, queryStr: string) => {
+  const results = await pool.query(`
+    SET search_path TO 'tenant_${tenantId}', 'public'
+    ${queryStr}
+  `)
+  return results[1].rows
+}
+
+const queryAsTenantAndUser = async (tenantId: string, userId, queryStr: string) => {
+  const results = await pool.query(`
+    SET search_path TO 'tenant_${tenantId}', 'public'
+    SET SESSION app.current_user_id to '${userId}';
+    ${queryStr}
+  `)
+  return results[2].rows
+}
 ```
-
-
-
-Insert example data:
-
-INSERT INTO users VALUES ('1'), ('2');
-INSERT INTO items VALUES ('1'), ('2'), ('3'), ('4');
-INSERT INTO item_users VALUES ('1', '1'), ('2', '2'), ('3', '1'), ('3', '2');
-
-
-create policy select_policy on items for select
-using (
-  exists (
-    select 1 from item_users
-    where item_id = id
-    and user_id = current_setting('app.current_user_id')
-  )
-);
-Create a Postgres user without superuser grants. This user will be subject to the RLS policies, unlike to the default postgres user that is a superuser.
-create user querier password 'postgres';
-
--- Give access to existing tables (does not bypass RLS)
-grant all privileges on all tables in schema public to querier;
-
--- Give access to future tables (does not bypass RLS)
-alter default privileges in schema public grant all on tables to querier;
