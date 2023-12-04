@@ -6,33 +6,33 @@ When building SaaS systems, customer data isolation is essential. This can be ac
 
 This article outlines different approaches, their pros and cons, and gives reference implementations using Postgres and TypeScript.
 
-Different projects require different degree of isolation. The Row Level Security approach strikes an interesting balance between security and operational overhead.
+Different projects require different degrees of isolation. The Row Level Security approach strikes an interesting balance between security and operational overhead.
 
 ### Why?
 
 The goal of data isolation is to minimize the risk of data leakage. This includes both the case of an attacker gaining (partial) access and plain bugs that don't apply permission filtering correctly.
 
-Many projects start out using explicit WHERE clauses in queries for filtering data, but as the application grows this gets unmaintainable and has security vulnerabilities.
+Many projects start out using explicit WHERE clauses in queries for filtering data, but as the application grows, this becomes unmaintainable and has security vulnerabilities.
 
-Enterprise accounts (tenants) require strict data isolation. As engineers we need to find the right balance between security and operational overhead.
+Enterprise accounts (tenants) require strict data isolation. As engineers, we need to find the right balance between security and operational overhead.
 
 ### How?
 
-We will cover these methods of data isolation per tenant. Ordered from less strict to more strict (and less operational overhead to more).
+We will cover these methods of data isolation. Ordered from less strict to more strict (and less operational overhead to more).
 
 1. **Explicit WHERE clauses**
-3. **Reusable WITH queries**
-2. **Temporary VIEWs**
+2. **Reusable WITH queries**
+3. **Temporary VIEWs**
 4. **Row Level Security**
 5. **Schema separation**
 6. **Logical database separation**
 7. **Physical database instance separation**
 
-Approach 1 is very basic and gives no real guarantees. Approaches 2-3 can give ok security guarantees if used correctly in application code. Approach 4 gives strict data isolation guarantees with minimal operational overhead. Approaches 5-7 gives deep isolation and by using separate database users can limit the blast radius if an attacker gets in, but comes with larger operational overhead.
+Approach 1 is very basic and gives no real guarantees. Approaches 2-3 can give ok security guarantees if used correctly in application code. Approach 4 gives strict data isolation guarantees with minimal operational overhead. Approaches 5-7 give deep isolation and by using separate database users can limit the blast radius if an attacker gets in, but comes with larger operational overhead.
 
 ## Understanding the differences
 
-The essential use case is captured by these tables. Keep them in mind as we go through the different approaches and mentally add any role based access control (RBAC) requirements.
+These tables capture the essential use case. Keep them in mind as we review the different approaches. Adding additional role-based access control (RBAC) requirements is left as an exercise for the reader.
 
 ```sql
 CREATE TABLE users (
@@ -54,16 +54,16 @@ CREATE TABLE item_users (
 
 ### 1. Explicit WHERE clauses
 
-In essence this approach involves adding `WHERE tenant_id = {tenantId}` to all queries. In the same way `user_id` and RBAC requirements are added.
+In essence, this approach involves adding `WHERE tenant_id = {tenantId}` to all queries. In the same way, `user_id` and RBAC requirements are added.
 
 **Pros:** The simplest approach to get started with.
 
-**Cons:** Permission checks are duplicated across all queries and joins, which gets hard to maintain. It is easy to forget to add the necessary WHERE clause to a query, which can lead to data leakage.
+**Cons:** Permission checks are duplicated across all queries and joins, which makes it hard to maintain. It is easy to forget to add the necessary WHERE clause to a query, which can lead to data leakage.
 
 
 ### 2. Reusable WITH queries
 
-This approach aims to minimize the risk of forgetting to add the WHERE clause to a query by creating WITH statements that are reused across queries. This assumes one is using a query builder or ORM that supports reusable queries such as Knex or jOOQ. This translates to queries like this:
+This approach aims to minimize the risk of forgetting to add the WHERE clause to a query by creating WITH statements that are reused across queries. This assumes one uses a query builder or an ORM that supports reusable queries such as Knex or jOOQ. This translates to queries like this:
 
 ```sql
 WITH tenant_items AS (
@@ -79,7 +79,7 @@ SELECT * FROM tenant_items;
 
 ### 3. Temporary VIEWs in queries
 
-This approach is similar to WITH queries, but instead uses temporary views. This translates to queries like this:
+This approach is similar to WITH queries but instead uses temporary views. This translates to queries like this:
 
 ```sql
 CREATE TEMPORARY VIEW tenant_items AS (
@@ -98,7 +98,7 @@ The idea is that the VIEW is created once and reused across queries.
 
 ### 4. Row level security (RLS)
 
-This approach uses the Postgres feature [Row Level Security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) which allows to define granular access rights per row. The policies are automatically applied to all queries.
+This approach uses the Postgres feature [Row Level Security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html), which allows to define granular access rights per row. The policies are automatically applied to all queries.
 
 ```sql
 ALTER TABLE items ENABLE ROW LEVEL SECURITY;
@@ -116,11 +116,13 @@ SELECT * FROM users;
 SELECT * FROM users WHERE tenant_id = current_setting('app.current_tenant_id');
 ```
 
-The `current_tenant_id` is managed by the db client in application code and queries need to run as a database user without superuser privileges. See the reference implementation at the end of this article for more details.
+The `current_tenant_id` is managed by the db client in application code and queries need to run as a database user without superuser privileges.
 
-**Pros:** Gives stric data isolation guarantees automatically after policies have been set up. Access control can be very granular; different policies can be specified for `SELECT`, `INSERT`, `UPDATE` and `DELETE`.
+See the [Supabase docs](supabase.com/docs/guides/auth/row-level-security) for a more elaborate description of RLS, and see the end of this article for a succinct reference implementation using no frameworks.
 
-**Cons:** Has a performance impact on queries since the RLS policies are evaluated for each row. Application logic is spread out across the database and application code, which makes it harder to reason about.
+**Pros:** Gives strict data isolation guarantees automatically after policies have been set up. Access control can be very granular; different policies can be specified for SELECT, INSERT, UPDATE and DELETE. Any RBAC can be modeled.
+
+**Cons:** Has a performance impact on queries since the RLS policies are evaluated for each row. Application logic is spread out across the database and application code, making it harder to reason about.
 
 
 ### 5. Schemas separation
@@ -137,9 +139,9 @@ SELECT * FROM tenant_123.items;
 SET search_path TO tenant_123;
 ```
 
-**Pros:** Gives a strict data isolation across schemas. Since tables are separated, indexes are smaller and therefore both inserts and selects are faster compared to having all data in one table.
+**Pros:** Gives strict data isolation across schemas. Since tables are separated, indexes are smaller, and therefore both inserts and selects are faster compared to having all data in one table.
 
-**Cons:** The data isolation is not granular, not possible to isolate data based on `user_id`. Larger operational overhead than the previous approaches. Keeping table definitions in sync across schemas requires explicit management. Eg. when running migrations, the `items` table needs to be migrated separately for each schema.
+**Cons:** The data isolation is not granular: not possible to isolate data based on `user_id` or more genral RBAC. Larger operational overhead than the previous approaches. Keeping table definitions in sync across schemas requires explicit management. Eg. when running migrations, the `items` table needs to be migrated separately for each schema.
 
 
 ### 6. Logical database separation
@@ -150,9 +152,9 @@ This approach involves creating separate logical databases for each tenant.
 CREATE DATABASE tenant_123;
 ```
 
-The connection to a logical database is explicit. To connect to another database, a new connection needs to be established.
+The connection to each logical database uses independent database users and access rights. To connect to another database, a new connection needs to be established.
 
-**Pros:** Deep isolation.
+**Pros:** Deep isolation using separate database users.
 
 **Cons:** Large operational overhead. Not possible to share database extensions, roles or policies.
 
@@ -168,7 +170,7 @@ This approach involves running a separate database instance for each tenant.
 
 ## RLS reference implementation
 
-The full runnable reference implementation can be found on [GitHub](https://github.com/ViktorQvarfordt/blog/tree/main/reference-implementations/postgres-row-level-security). The essence of the implementation is to set the session variables for RLS before each query. This example uses only `current_user_id` for simplicity.
+The full runnable reference implementation can be found on [GitHub](https://github.com/ViktorQvarfordt/blog/tree/main/reference-implementations/postgres-row-level-security). The essence of the implementation is to set the session variables for RLS before each query. This example uses only `current_user_id` for simplicity, and is implemented with TypeScript and the Node Postgres client [pg](https://github.com/brianc/node-postgres).
 
 ```ts
 import pg from 'pg'
@@ -198,4 +200,79 @@ const main = async () => {
 main()
 ```
 
-The result from the two queries will be different since the RLS policy filters the rows based on the `current_user_id` session variable.
+Prepare the database:
+
+```sql
+-- CREATE TABLES
+
+CREATE TABLE users (
+  id TEXT PRIMARY KEY
+);
+
+CREATE TABLE items (
+  id TEXT PRIMARY KEY
+);
+
+CREATE TABLE item_users (
+  item_id TEXT NOT NULL REFERENCES items(id),
+  user_id TEXT NOT NULL REFERENCES users(id)
+);
+
+
+-- INSERT EXAMPLE DATA
+
+INSERT INTO users VALUES ('1'), ('2');
+INSERT INTO items VALUES ('1'), ('2'), ('3'), ('4');
+INSERT INTO item_users VALUES ('1', '1'), ('2', '2'), ('3', '1'), ('3', '2');
+
+
+-- CREATE RLS POLICIES
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE item_users ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY select_policy ON users FOR SELECT
+USING (
+  id = current_setting('app.current_user_id')
+);
+
+CREATE POLICY select_policy ON item_users FOR SELECT
+USING (
+  user_id = current_setting('app.current_user_id')
+);
+
+CREATE POLICY select_policy ON items FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM item_users
+    WHERE item_id = id
+    AND user_id = current_setting('app.current_user_id')
+  )
+);
+
+
+-- CREATE RLS DB USER
+
+-- Create a Postgres user without superuser grants.
+-- This user will be subject to the RLS policies,
+-- unlike to the default postgres user that is a superuser.
+create user querier password 'postgres';
+
+-- Give access to existing tables (does not bypass RLS).
+grant all privileges on all tables in schema public to querier;
+
+-- Give access to future tables (does not bypass RLS).
+alter default privileges in schema public grant all on tables to querier;
+```
+
+Running the program outputs:
+
+```
+Rows for user 1: [ { id: '1' }, { id: '3' } ] 
+Rows for user 2: [ { id: '2' }, { id: '3' } ]
+```
+
+The results are different since the RLS policy filters the rows based on the current_user_id session variable. See the [full code](https://github.com/ViktorQvarfordt/blog/tree/main/reference-implementations/postgres-row-level-security) for further details and how to run the test.
+
+With these tools at hand, you should be able to select the appropriate data isolation for your application. Happy coding!
