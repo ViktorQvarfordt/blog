@@ -481,6 +481,8 @@ INSERT INTO edge (source_node_id, target_node_id) VALUES
 (2, 5);
 ```
 
+<img src="../assets/other-graph.png" style="width: 312px;" />
+
 Now test the functions:
 
 ```sql
