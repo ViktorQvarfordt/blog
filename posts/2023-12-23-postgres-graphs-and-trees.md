@@ -55,11 +55,7 @@ You can imagine many additional properties of the graph. For example, the graph 
 **Insert example data:**
 
 ```sql
-INSERT INTO node (id) VALUES
-(1),
-(2),
-(3),
-(4);
+INSERT INTO node (id) VALUES (1), (2), (3), (4);
 
 INSERT INTO edge (source_node_id, target_node_id) VALUES
 (1, 2),
@@ -95,7 +91,7 @@ WHERE source_node_id = 1; -- Insert starting node here
 ```sql
 SELECT e2.target_node_id AS node_id
 FROM edge AS e1
-JOIN edge AS e2 on e1.target_node_id = e2.source_node_id
+JOIN edge AS e2 ON e1.target_node_id = e2.source_node_id
 WHERE e1.source_node_id = 1; -- Insert starting node here
 ```
 
@@ -119,16 +115,16 @@ UNION
 -- 2-step neighbors
 SELECT e2.target_node_id AS node_id
 FROM edge AS e1
-JOIN edge AS e2 on e1.target_node_id = e2.source_node_id
+JOIN edge AS e2 ON e1.target_node_id = e2.source_node_id
 WHERE e1.source_node_id = 1 -- Insert starting node here
 
-union
+UNION
 
 -- 3-step neighbors
 SELECT e3.target_node_id AS node_id
 FROM edge AS e1
-JOIN edge AS e2 on e1.target_node_id = e2.source_node_id
-JOIN edge AS e3 on e2.target_node_id = e3.source_node_id
+JOIN edge AS e2 ON e1.target_node_id = e2.source_node_id
+JOIN edge AS e3 ON e2.target_node_id = e3.source_node_id
 WHERE e1.source_node_id = 1; -- Insert starting node here
 ```
 
@@ -378,7 +374,7 @@ $$;
 We can now add add a check CHECK to enforce that no cycles ever get inserted. First, we delete the row that violates the check:
 
 ```sql
-DELETE FROM edge where source_node_id = 3 AND target_node_id = 1;
+DELETE FROM edge WHERE source_node_id = 3 AND target_node_id = 1;
 
 ALTER TABLE edge ADD CONSTRAINT check_no_cycles CHECK (NOT has_cycle(source_node_id, target_node_id));
 ```
