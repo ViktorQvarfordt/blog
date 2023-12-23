@@ -1,4 +1,4 @@
-# WIP: Modeling Graphs and Trees in Postgres
+# Modeling graphs and trees in Postgres
 
 In this article, we explore how Postgres, a powerful and versatile relational database, can be effectively used to model and traverse graph and tree data structures. While specialized graph databases exist, Postgres offers a robust alternative without the need for additional database systems.
 
@@ -66,7 +66,7 @@ INSERT INTO edge (source_node_id, target_node_id) VALUES
 (2, 3),
 (1, 4);
 ```
-![](../assets/simple-graph.png)
+<img src="../assets/simple-graph.png" style="width: 266px;" />
 
 ## Queries for traversing the graph
 
@@ -207,7 +207,7 @@ Let's insert one more edge to create a cycle (1 -> 2 -> 3 -> 1)
 INSERT INTO edge (source_node_id, target_node_id) VALUES (3, 1);
 ```
 
-![](../assets/simple-graph-with-cycle.png)
+<img src="../assets/simple-graph-with-cycle.png" style="width: 262px;" />
 
 With this change, the previous recursive query will get stuck in an infinite loop. We can see the initial result by adding `LIMIT 10`:
 
@@ -531,4 +531,12 @@ MATCH p = shortestPath((start)-[*]-(end))
 RETURN p
 ```
 
-There are extensions for postgres such as [AGE](https://github.com/apache/age) (supports Cypher) and [pgRouting](https://github.com/pgRouting/pgrouting) that add powerful graph operations to Postgres. However, these are not that common and might not be available in your managed sql database provider. Plain Postgres might be all you need.
+There are extensions for postgres such as [AGE](https://github.com/apache/age) (supports Cypher) and [pgRouting](https://github.com/pgRouting/pgrouting) that add powerful graph operations to Postgres. However, these are not that common and might not be available in your managed sql database provider.
+
+Plain Postgres might be all you need.
+
+We used these methods:
+
+* [Recursive queries](https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-RECURSIVE).
+* [Postgres functions](https://www.postgresql.org/docs/current/sql-createfunction.html) with the [plpgsql](https://www.postgresql.org/docs/current/plpgsql.html) language.
+* The `FOR rec IN query LOOP statement END LOOP` [control structure](https://www.postgresql.org/docs/current/plpgsql-control-structures.html#PLPGSQL-RECORDS-ITERATING).
