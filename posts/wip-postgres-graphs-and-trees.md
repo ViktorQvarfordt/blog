@@ -1,16 +1,22 @@
-# WIP: Postgres for modelling graphs and trees
+# WIP: Modeling Graphs and Trees in Postgres
 
-With this post I want to show that Postgres is very capable for modeling and querying/traversing graph data structures. Recursive queries will play a key role.
+In this article, we explore how Postgres, a powerful and versatile relational database, can be effectively used to model and traverse graph and tree data structures. While specialized graph databases exist, Postgres offers a robust alternative without the need for additional database systems.
 
-Many applications involve modeling data as graphs or trees. There are specialized graph databases. But you might not need yet another database, and all the operational complexity it brings.
+We show how to implementat common graph operations:
 
-We will use simple normalized tables to model graphs. We will give implementations for common graph operations, such as getting all (transitive) neighboring nodes, identifying cycles, and finding the shortest path between two nodes.
+* Getting all (transitive) neighboring nodes.
+* Detecting (and preventing) cycles.
+* Finding the shortest path (and all paths) between two nodes.
+
+We will use simple normalized tables to model the graph. Recursive queries will play a key role for traversing the graph. Finally, we'll use advanced Postgres control structures for performance optimizations.
 
 ### Use-case examples
 
-**Example 1:** Modeling transitive properties across hierarchical entities. Properties of a parent entity should implicitly apply to all its (transitive) child entities. Think of modeling permissions for a folder structure in a knowledge base.
+**Example 1:** Modeling permissions for a folder structure in a knowledge base.
 
-**Example 2:** Using a knowledge graph to extract data for a RAG pipeline powering a knowledge assistant.
+**Example 2:** Traversing a knowledge graph powering a knowledge assistant.
+
+More generally, you can think of any use-case that requires modeling transitive properties across hierarchical entities where properties of a parent entity should propagate to all its (transitive) child entities. 
 
 ## Setup
 
@@ -26,7 +32,7 @@ docker run --rm -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:15-alpine
 psql postgresql://postgres:postgres@127.0.0.1:5432/postgres
 ```
 
-**Create tables to model the graph:** We keep the graph simple; this models no particular use-case but demonstrates the fundamental principles.
+**Create tables to model the graph:**
 
 ```sql
 CREATE TABLE node (
@@ -42,7 +48,7 @@ CREATE TABLE edge (
 );
 ```
 
-This models a directed graph. The graph is directed since edges have a direction (source -> target).
+We keep the graph simple. This models no particular use-case but demonstrates the fundamental principles. This is a directed graph since edges have a direction (source -> target).
 
 You can imagine many additional properties of the graph. For example, the graph can be turned into a weighted graph by adding a `weight REAL NOT NULL` column to the `edge` table. This may represent the cost utilizing an edge.
 
@@ -60,19 +66,20 @@ INSERT INTO edge (source_node_id, target_node_id) VALUES
 (2, 3),
 (1, 4);
 ```
+![](../assets/simple-graph.png)
 
 ## Queries for traversing the graph
 
-Before showing the general solution with recursive queries, we show the naive approach using joins. You can skip this section but it may be useful for your intuition.
+Before showing the general solution with recursive queries, we the naive approach using joins. You can skip this section but it may be useful for your intuition.
 
 ### Naive approach
 
-**Get all direct neighbor nodes to a given node**
+**Get all direct neighbor nodes to a given node:**
 
 ```sql
 SELECT target_node_id AS node_id
 FROM edge
-WHERE source_node_id = 1; -- Insert starting node here.
+WHERE source_node_id = 1; -- Insert starting node here
 ```
 
 ```
@@ -83,13 +90,13 @@ WHERE source_node_id = 1; -- Insert starting node here.
 (2 rows)
 ```
 
-**Get all neighbor nodes to a given node with distance 2**
+**Get all neighbor nodes to a given node with distance 2:**
 
 ```sql
 SELECT e2.target_node_id AS node_id
 FROM edge AS e1
 JOIN edge AS e2 on e1.target_node_id = e2.source_node_id
-WHERE e1.source_node_id = 1; -- Insert starting node here.
+WHERE e1.source_node_id = 1; -- Insert starting node here
 ```
 
 ```
@@ -105,7 +112,7 @@ We can continue adding joins to go further. We can also combine the results to g
 -- 1-step neighbors
 SELECT target_node_id AS node_id
 FROM edge
-WHERE source_node_id = 1 -- Insert starting node here.
+WHERE source_node_id = 1 -- Insert starting node here
 
 UNION
 
@@ -113,7 +120,7 @@ UNION
 SELECT e2.target_node_id AS node_id
 FROM edge AS e1
 JOIN edge AS e2 on e1.target_node_id = e2.source_node_id
-WHERE e1.source_node_id = 1 -- Insert starting node here.
+WHERE e1.source_node_id = 1 -- Insert starting node here
 
 union
 
@@ -122,10 +129,19 @@ SELECT e3.target_node_id AS node_id
 FROM edge AS e1
 JOIN edge AS e2 on e1.target_node_id = e2.source_node_id
 JOIN edge AS e3 on e2.target_node_id = e3.source_node_id
-WHERE e1.source_node_id = 1; -- Insert starting node here.
+WHERE e1.source_node_id = 1; -- Insert starting node here
 ```
 
-Now let's do this it for the general case:
+```
+ node_id
+---------
+       4
+       2
+       3
+(3 rows)
+```
+
+Now let's do it it for the general case:
 
 ### Get all nodes reachable from a given node
 
@@ -136,7 +152,7 @@ WITH RECURSIVE traversed AS (
     1 AS depth,
     ARRAY[source_node_id] AS path
   FROM edge
-  WHERE source_node_id = 1 -- Insert starting node here.
+  WHERE source_node_id = 1 -- Insert starting node here
 
   UNION ALL
 
@@ -191,6 +207,8 @@ Let's insert one more edge to create a cycle (1 -> 2 -> 3 -> 1)
 INSERT INTO edge (source_node_id, target_node_id) VALUES (3, 1);
 ```
 
+![](../assets/simple-graph-with-cycle.png)
+
 With this change, the previous recursive query will get stuck in an infinite loop. We can see the initial result by adding `LIMIT 10`:
 
 ```
@@ -209,7 +227,7 @@ With this change, the previous recursive query will get stuck in an infinite loo
 (10 rows)
 ```
 
-We can prevent this by stopping when we reach a cycle. We add `WHERE NOT traversed.node_id = ANY(traversed.path)`:
+We can prevent this by stopping before we reach a cycle by adding `WHERE NOT edge.target_node_id = ANY(traversed.path)`:
 
 ```sql
 WITH RECURSIVE traversed AS (
@@ -218,7 +236,7 @@ WITH RECURSIVE traversed AS (
     1 AS depth,
     ARRAY[source_node_id] AS path
   FROM edge
-  WHERE source_node_id = 1 -- Insert starting node here.
+  WHERE source_node_id = 1 -- Insert starting node here
 
   UNION ALL
 
@@ -229,7 +247,7 @@ WITH RECURSIVE traversed AS (
   FROM traversed
   JOIN edge ON edge.source_node_id = traversed.node_id
   WHERE
-  	NOT traversed.node_id = ANY(traversed.path) -- Stop on cycle
+  	NOT edge.target_node_id = ANY(traversed.path) -- Stop on cycle
   	AND traversed.depth < 100 -- Sanity check
 )
 SELECT node_id, depth, path || node_id AS path
@@ -237,20 +255,58 @@ FROM traversed;
 ```
 
 ```
- node_id | depth |   path
----------+-------+-----------
+ node_id | depth |  path
+---------+-------+---------
        2 |     1 | {1,2}
        4 |     1 | {1,4}
        3 |     2 | {1,2,3}
-       1 |     3 | {1,2,3,1}
+(3 rows)
+```
+
+With a slight variation we can see the cycles explicitly:
+
+```sql
+WITH RECURSIVE traversed AS (
+  SELECT
+    target_node_id AS node_id,
+    1 AS depth,
+    ARRAY[source_node_id] AS path,
+    FALSE AS is_cycle
+  FROM edge
+  WHERE source_node_id = 1 -- Insert starting node here
+
+  UNION ALL
+
+  SELECT
+    edge.target_node_id,
+    traversed.depth + 1,
+    traversed.path || edge.source_node_id,
+    edge.target_node_id = ANY(traversed.path)
+  FROM traversed
+  JOIN edge ON edge.source_node_id = traversed.node_id
+  WHERE
+  	NOT traversed.is_cycle -- Stop on cycle
+  	AND traversed.depth < 100 -- Sanity check
+)
+SELECT node_id, depth, path || node_id AS path, is_cycle
+FROM traversed;
+```
+
+```
+ node_id | depth |   path    | is_cycle
+---------+-------+-----------+----------
+       2 |     1 | {1,2}     | f
+       4 |     1 | {1,4}     | f
+       3 |     2 | {1,2,3}   | f
+       1 |     3 | {1,2,3,1} | t
 (4 rows)
 ```
 
 ## Enforcing no cycles in the data
 
-It may suffice to ignore cycles when selecting, like above. But we may want to prevent cycles from ever being created, so that the data really is an acyclic graph (a tree).
+It may suffice to ignore cycles when selecting, like above. But we may want to prevent cycles from ever being created, so that the data is really an acyclic graph (a tree).
 
-This can be done with a `CHECK` constraint to the edge table. To do this, we will create a function that checks for cycles.
+This can be done with a `CHECK` constraint on the edge table. To do this, we will create a function that checks for cycles. The function `has_cycle` works by checking "if an edge with the given source_node_id and target_node_id was to be inserted, would there be a cycle?".
 
 First, a non-optimized implementation that keeps computing after the first cycle has been detected:
 
@@ -284,7 +340,7 @@ END;
 $$;
 ```
 
-To stop computing when the first cycle has been detected, we can use the `FOR rec IN query LOOP` construct. See the [Postgres docs](https://www.postgresql.org/docs/current/plpgsql-control-structures.html#PLPGSQL-RECORDS-ITERATING) for more details.
+As an optimization, we can stop computing when the first cycle has been detected. We can use the `FOR rec IN query LOOP statement END LOOP` construct. This construct allows us to tap into the row selection process. Each time a row is generated in `query`, it is assigned to `rec` and `statement` is executed. From `statement` we can make an early exit and stop generating rows in `query`. (See the [Postgres docs](https://www.postgresql.org/docs/current/plpgsql-control-structures.html#PLPGSQL-RECORDS-ITERATING) for more details.)
 
 ```sql
 CREATE OR REPLACE FUNCTION has_cycle(input_source_node_id BIGINT, input_target_node_id BIGINT)
@@ -319,13 +375,15 @@ END;
 $$;
 ```
 
-We can now add this CHECK after we delete the row that violates it:
+We can now add add a check CHECK to enforce that no cycles ever get inserted. First, we delete the row that violates the check:
 
 ```sql
 DELETE FROM edge where source_node_id = 3 AND target_node_id = 1;
 
 ALTER TABLE edge ADD CONSTRAINT check_no_cycles CHECK (NOT has_cycle(source_node_id, target_node_id));
 ```
+
+The CHECK runs before a row is inserted, both `source_node_id` and `target_node_id` refer to columns of the row that is to be inserted.
 
 If we now try to insert an edge that results in a cycle, we will get an error:
 
@@ -382,30 +440,30 @@ LANGUAGE plpgsql AS $$
 DECLARE
   rec RECORD;
 BEGIN
-    RETURN QUERY WITH RECURSIVE traversed AS (
-  	  SELECT
-	  	ARRAY[edge.source_node_id] AS path,
-	    edge.target_node_id AS node_id
-	  FROM edge
-	  WHERE edge.source_node_id = input_source_node_id
+  RETURN QUERY WITH RECURSIVE traversed AS (
+    SELECT
+      ARRAY[edge.source_node_id] AS path,
+      edge.target_node_id AS node_id
+    FROM edge
+    WHERE edge.source_node_id = input_source_node_id
 
-      UNION ALL
+    UNION ALL
 
-      SELECT
-        traversed.path || edge.source_node_id,
-        edge.target_node_id
-      FROM traversed
-      JOIN edge ON edge.source_node_id = traversed.node_id
-      WHERE NOT edge.target_node_id = ANY(traversed.path)
-    )
-    SELECT path || node_id AS path
+    SELECT
+      traversed.path || edge.source_node_id,
+      edge.target_node_id
     FROM traversed
-    WHERE node_id = input_target_node_id;
+    JOIN edge ON edge.source_node_id = traversed.node_id
+    WHERE NOT edge.target_node_id = ANY(traversed.path)
+  )
+  SELECT path || node_id AS path
+  FROM traversed
+  WHERE node_id = input_target_node_id;
 END;
 $$;
 ```
 
-Let's test the two functions:
+Let's test the two functions. First, we prepare some test data:
 
 ```sql
 DELETE FROM edge;
@@ -421,27 +479,39 @@ INSERT INTO edge (source_node_id, target_node_id) VALUES
 (4, 5),
 (1, 3),
 (2, 5);
+```
 
+Now test the functions:
+
+```sql
 SELECT all_paths(1, 5);
---   all_paths
--- -------------
---  {1,2,5}
---  {1,3,4,5}
---  {1,2,3,4,5}
--- (3 rows)
+```
 
+```
+  all_paths
+-------------
+ {1,2,5}
+ {1,3,4,5}
+ {1,2,3,4,5}
+(3 rows)
+```
+
+```sql
 SELECT shortest_path(1, 5);
---  shortest_path
--- ---------------
---  {1,2,5}
--- (1 row)
+```
+
+```
+ shortest_path
+---------------
+ {1,2,5}
+(1 row)
 ```
 
 ## Conclusion
 
-As we've seen, plain Postgres is all we need for many graph queries.
+As we've seen, plain Postgres works well for many graph queries.
 
-In doing so, you get the benefits of maintaining only one database and avoiding syncing data and permissions across different databases. You will likely need Postgres even if you opt for a graph database (such as Neo4j), to maintain basic application data.
+By not introducing another database to one's stack one gets the benefits of maintaining only one database and avoiding syncing data and permissions across different databases. One will likely need Postgres even if one opts for a graph database (such as Neo4j), to maintain basic application data.
 
 We wrap up by giving you a hint of what else there is.
 
@@ -461,4 +531,4 @@ MATCH p = shortestPath((start)-[*]-(end))
 RETURN p
 ```
 
-You don't have to use a dedicated graph database to access optimized graph queries. There are extensions for postgres such as [AGE](https://github.com/apache/age) and [pgRouting](https://github.com/pgRouting/pgrouting). However, these are not that common and might not be available in your managed sql database provider.
+There are extensions for postgres such as [AGE](https://github.com/apache/age) (supports Cypher) and [pgRouting](https://github.com/pgRouting/pgrouting) that add powerful graph operations to Postgres. However, these are not that common and might not be available in your managed sql database provider. Plain Postgres might be all you need.
