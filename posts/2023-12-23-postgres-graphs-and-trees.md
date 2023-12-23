@@ -68,7 +68,7 @@ INSERT INTO edge (source_node_id, target_node_id) VALUES
 ```
 <img src="../assets/simple-graph.png" style="width: 266px;" />
 
-## Queries for traversing the graph
+## Traversing the graph
 
 Before showing the general solution with recursive queries, we the naive approach using joins. You can skip this section but it may be useful for your intuition.
 
@@ -247,8 +247,8 @@ WITH RECURSIVE traversed AS (
   FROM traversed
   JOIN edge ON edge.source_node_id = traversed.node_id
   WHERE
-  	NOT edge.target_node_id = ANY(traversed.path) -- Stop on cycle
-  	AND traversed.depth < 100 -- Sanity check
+    NOT edge.target_node_id = ANY(traversed.path) -- Stop on cycle
+    AND traversed.depth < 100 -- Sanity check
 )
 SELECT node_id, depth, path || node_id AS path
 FROM traversed;
@@ -285,8 +285,8 @@ WITH RECURSIVE traversed AS (
   FROM traversed
   JOIN edge ON edge.source_node_id = traversed.node_id
   WHERE
-  	NOT traversed.is_cycle -- Stop on cycle
-  	AND traversed.depth < 100 -- Sanity check
+    NOT traversed.is_cycle -- Stop on cycle
+    AND traversed.depth < 100 -- Sanity check
 )
 SELECT node_id, depth, path || node_id AS path, is_cycle
 FROM traversed;
@@ -319,9 +319,9 @@ DECLARE
 BEGIN
   WITH RECURSIVE traversed AS (
     SELECT
-  	  ARRAY[input_source_node_id] AS path,
-  	  input_target_node_id AS target_node_id,
-  	  false as is_cycle
+      ARRAY[input_source_node_id] AS path,
+      input_target_node_id AS target_node_id,
+      false as is_cycle
 
     UNION ALL
 
@@ -351,7 +351,7 @@ DECLARE
 BEGIN
   FOR rec IN
     WITH RECURSIVE traversed AS (
-  	  SELECT
+      SELECT
         ARRAY[input_source_node_id] AS path,
         input_target_node_id AS target_node_id
 
@@ -405,11 +405,11 @@ DECLARE
 BEGIN
   FOR rec IN
     WITH RECURSIVE traversed AS (
-  	  SELECT
-	  	ARRAY[edge.source_node_id] AS path,
-	    edge.target_node_id AS node_id
-	  FROM edge
-	  WHERE edge.source_node_id = input_source_node_id
+      SELECT
+      ARRAY[edge.source_node_id] AS path,
+      edge.target_node_id AS node_id
+    FROM edge
+    WHERE edge.source_node_id = input_source_node_id
 
       UNION ALL
 
