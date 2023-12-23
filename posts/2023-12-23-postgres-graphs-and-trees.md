@@ -1,6 +1,6 @@
 # Modeling graphs and trees in Postgres
 
-In this article, we explore how Postgres, a powerful and versatile relational database, can be effectively used to model and traverse graph and tree data structures. While specialized graph databases exist, Postgres offers a robust alternative without the need for additional database systems.
+In this article, we explore how Postgres, a powerful and versatile relational database, can be effectively used to model and traverse graph and tree data structures. While specialized graph databases exist, such as Neo4j, Postgres offers a robust alternative without the need for additional database systems.
 
 We show how to implementat common graph operations:
 
