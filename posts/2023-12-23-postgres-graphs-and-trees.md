@@ -1,22 +1,40 @@
-# Modeling graphs and trees in Postgres
+[Published LinkedIn article](https://www.linkedin.com/pulse/you-dont-need-graph-database-modeling-graphs-trees-viktor-qvarfordt-efzof)
 
-In this article, we explore how Postgres, a powerful and versatile relational database, can be effectively used to model and traverse graph and tree data structures. While specialized graph databases exist, such as Neo4j, Postgres offers a robust alternative without the need for additional database systems.
+PostgreSQL is all you need for modeling and traversing graph and tree data. While there are dedicated graph databases, like Neo4j, you might not need them. Keep your production system complexity low.
 
-We show how to implementat common graph operations:
+Check out this article to learn how to write Postgres queries that:
+* Traverse a graph.
+* Detect cycles.
+* Find the shortest path.
 
-* Getting all (transitive) neighboring nodes.
+
+![](../assets/postgres-graphs-and-trees.png)
+
+# You don't need a graph database: Modeling graphs and trees in PostgreSQL
+
+In this article, we explore how Postgres, a powerful and versatile relational database, can be effectively used to model and traverse graphs and trees. While specialized graph databases exist, such as Neo4j, Postgres offers a robust alternative without the need for additional database systems.
+
+We show how to implement **common graph operations**:
+
+* Getting all (transitive) neighbor nodes.
 * Detecting (and preventing) cycles.
 * Finding the shortest path (and all paths) between two nodes.
 
 We will use simple normalized tables to model the graph. Recursive queries will play a key role for traversing the graph. Finally, we'll use advanced Postgres control structures for performance optimizations.
 
+### Definition of a graph
+
+A graph has a set of _nodes_ and a set of _edges_. An edge is a link between two nodes, establishing a relation between them.
+
 ### Use-case examples
 
-**Example 1:** Modeling permissions for a folder structure in a knowledge base.
+1. **Social networks.** In such a graph, the nodes are persons and the edges represent the "is friend" relation.
+2. **Documents in a hierarchical knowledge base.** Such a graph consists of documents as nodes and the edges represent the "is subdocument" relation. In this way, permissions to documents can propagate to all its sub-documents, sub-sub-documents, etc.
+3. **Traversing a knowledge graph** powering a search engine, knowledge assistant or e-commerce product recommendations. The edges may represent "is related to", or something more specific like "is made of material".
 
-**Example 2:** Traversing a knowledge graph powering a knowledge assistant.
+More generally, anytime you have a many-to-many relation from a table to itself (via another table; the edge table) you have a graph.
 
-More generally, you can think of any use-case that requires modeling transitive properties across hierarchical entities where properties of a parent entity should propagate to all its (transitive) child entities. 
+<!-- More generally, you can think of any use-case that requires modeling transitive properties across hierarchical entities where properties of a parent entity should propagate to all its (transitive) child entities. -->
 
 ## Setup
 
@@ -50,7 +68,7 @@ CREATE TABLE edge (
 
 We keep the graph simple. This models no particular use-case but demonstrates the fundamental principles. This is a directed graph since edges have a direction (source -> target).
 
-You can imagine many additional properties of the graph. For example, the graph can be turned into a weighted graph by adding a `weight REAL NOT NULL` column to the `edge` table. This may represent the cost utilizing an edge.
+You can imagine many additional properties of the graph. For example: Nodes and edges can be given a `type` column. This may represent product categories for the nodes and different types of relations such as, "is instance of" or "is made of material", for the edges. Another example: The graph can be turned into a weighted graph by adding a `weight` column to the `edge` table. This may represent the cost of utilizing an edge.
 
 **Insert example data:**
 
@@ -66,7 +84,7 @@ INSERT INTO edge (source_node_id, target_node_id) VALUES
 
 ## Traversing the graph
 
-Before showing the general solution with recursive queries, we the naive approach using joins. You can skip this section but it may be useful for your intuition.
+Before showing the general solution with recursive queries, we show the naive approach using joins. You can skip this section but it may be useful for your intuition.
 
 ### Naive approach
 
@@ -137,9 +155,9 @@ WHERE e1.source_node_id = 1; -- Insert starting node here
 (3 rows)
 ```
 
-Now let's do it it for the general case:
+Now, let's write a query for the general case:
 
-### Get all nodes reachable from a given node
+### Using recursive queries to traverse the graph
 
 ```sql
 WITH RECURSIVE traversed AS (
@@ -197,7 +215,7 @@ See the [Postgres docs](https://www.postgresql.org/docs/current/queries-with.htm
 
 ## Preventing cycles
 
-Let's insert one more edge to create a cycle (1 -> 2 -> 3 -> 1)
+Let's insert one more edge to create a cycle (1 -> 2 -> 3 -> 1):
 
 ```sql
 INSERT INTO edge (source_node_id, target_node_id) VALUES (3, 1);
@@ -223,7 +241,7 @@ With this change, the previous recursive query will get stuck in an infinite loo
 (10 rows)
 ```
 
-We can prevent this by stopping before we reach a cycle by adding `WHERE NOT edge.target_node_id = ANY(traversed.path)`:
+We can stop before reaching a cycle by adding `WHERE NOT edge.target_node_id = ANY(traversed.path)`:
 
 ```sql
 WITH RECURSIVE traversed AS (
@@ -390,7 +408,7 @@ INSERT INTO edge (source_node_id, target_node_id) VALUES (3, 1);
 
 ## Finding the shortest path
 
-Using the principles of the `has_cycle` function, we can write a function that finds the shortest path between two nodes, using the same early-stopping optimization as for `has_cycle`:
+Using the principles of the `has_cycle` function, we can write a function that finds the shortest path between two nodes, using the same early-stopping optimization:
 
 ```sql
 CREATE OR REPLACE FUNCTION shortest_path(input_source_node_id BIGINT, input_target_node_id BIGINT)
@@ -509,7 +527,7 @@ SELECT shortest_path(1, 5);
 
 As we've seen, plain Postgres works well for many graph queries.
 
-By not introducing another database to one's stack one gets the benefits of maintaining only one database and avoiding syncing data and permissions across different databases. One will likely need Postgres even if one opts for a graph database (such as Neo4j), to maintain basic application data.
+By not introducing another database to one's stack one gets the benefits of maintaining only one database and avoiding syncing data and permissions across different databases. One will likely need Postgres even if one opts for a graph database to maintain basic application data.
 
 We wrap up by giving you a hint of what else there is.
 
@@ -529,11 +547,11 @@ MATCH p = shortestPath((start)-[*]-(end))
 RETURN p
 ```
 
-There are extensions for postgres such as [AGE](https://github.com/apache/age) (supports Cypher) and [pgRouting](https://github.com/pgRouting/pgrouting) that add powerful graph operations to Postgres. However, these are not that common and might not be available in your managed sql database provider.
+There are extensions for Postgres such as [AGE](https://github.com/apache/age) (supports Cypher) and [pgRouting](https://github.com/pgRouting/pgrouting) that add powerful graph operations to Postgres. However, these are not that common and might not be available in your managed SQL database provider.
 
-Plain Postgres might be all you need.
+While dedicated graph databases are powerful, plain Postgres might be all you need.
 
-We used these methods:
+In this article, we used the methods:
 
 * [Recursive queries](https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-RECURSIVE).
 * [Postgres functions](https://www.postgresql.org/docs/current/sql-createfunction.html) with the [plpgsql](https://www.postgresql.org/docs/current/plpgsql.html) language.
