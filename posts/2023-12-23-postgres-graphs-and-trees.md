@@ -104,7 +104,7 @@ WHERE source_node_id = 1; -- Insert starting node here
 (2 rows)
 ```
 
-**Get all neighbor nodes to a given node with distance 2:**
+**Get all 2nd degree neighbor nodes to a given node:**
 
 ```sql
 SELECT e2.target_node_id AS node_id
@@ -120,17 +120,19 @@ WHERE e1.source_node_id = 1; -- Insert starting node here
 (1 row)
 ```
 
+**Get all 1st, 2nd, and 3rd degree neighbor nodes to a given node:**
+
 We can continue adding joins to go further. We can also combine the results to get all the nodes at distance 1, 2 and 3:
 
 ```sql
--- 1-step neighbors
+-- 1st degree neighbor nodes
 SELECT target_node_id AS node_id
 FROM edge
 WHERE source_node_id = 1 -- Insert starting node here
 
 UNION
 
--- 2-step neighbors
+-- 2nd degree neighbor nodes
 SELECT e2.target_node_id AS node_id
 FROM edge AS e1
 JOIN edge AS e2 ON e1.target_node_id = e2.source_node_id
@@ -138,7 +140,7 @@ WHERE e1.source_node_id = 1 -- Insert starting node here
 
 UNION
 
--- 3-step neighbors
+-- 3rd degree neighbor nodes
 SELECT e3.target_node_id AS node_id
 FROM edge AS e1
 JOIN edge AS e2 ON e1.target_node_id = e2.source_node_id
@@ -389,7 +391,7 @@ END;
 $$;
 ```
 
-We can now add add a check CHECK to enforce that no cycles ever get inserted. First, we delete the row that violates the check:
+We can now add add a CHECK to enforce that no cycles ever get inserted. First, we delete the row that violates the check:
 
 ```sql
 DELETE FROM edge WHERE source_node_id = 3 AND target_node_id = 1;
