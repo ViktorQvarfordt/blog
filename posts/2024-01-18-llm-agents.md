@@ -1,16 +1,16 @@
 # LLM Agents: Overview and implementation
 
-In this article, we explore LLM Agents. A popular idea having emerged from the capabilites of LLMs.
+In this article, we explore LLM Agents. A popular idea having emerged from the capabilities of LLMs.
 
-What do we exactly mean by an agent? And how do we implement it? This is what we will explore in this article.
+What do we exactly mean by an agent? And how do we implement them? This is what we will explore in this article.
 
 ## Definition of an LLM Agent
 
-**Agent = LLM + State + Tools**
+### Agent = LLM + State + Tools
 
 * The **LLM** component has the reasoning abilities to select the right action in a given situation. An action can be to respond with a message or to use a tool. E.g. GPT4.
-* The **State** component is the agent's memory of previous messages and results from used tools. E.g. stored in a database.
-* The **Tools (aka. Actions)** component is the agent's ability to interact with external systems. E.g. API calls to other services.
+* The **State** component is the agents memory of previous messages and results from used tools. E.g. stored in a database.
+* The **Tools (aka. Actions)** component is the agents ability to interact with the external world. E.g. API calls to other systems and services.
 
 Agents can be **triggered** by manual user input or by external events. External events can for example be a change in a database, monitoring of an email inbox, or time-based trigger.
 
@@ -34,7 +34,7 @@ Workflow agents have a state and can perform a sequence of actions. But this seq
 
 ### RAG is a workflow agent
 
-A RAG system (retreival augmented generation) can be seen as a workflow agent. It typically performs query rewrite, retrieves relevant documents, and then generates a response. More involved RAG systems have many more steps. This is the core of [Sana AI](https://sana.ai/), that I'm involved in building at [Sana Labs](https://sanalabs.com/). We have an extremely advanced RAG and are working on making it even more general, and adding more general agent capabilities.
+A RAG system (retrieval augmented generation) can be seen as a workflow agent. It typically performs query rewrite, retrieves relevant documents, and then generates a response. More involved RAG systems have many more steps. This is the core of [Sana AI](https://sana.ai/), that I'm involved in building at [Sana Labs](https://sanalabs.com/). We have an extremely advanced RAG and are working on making it even more general, and adding more general agent capabilities.
 
 ### General agents
 
@@ -68,7 +68,7 @@ See the [GitHub repository](github.com/viktorqvarfordt/llm-agent-demo) for full 
 
 The agent is hooked up with some simple tools: `getCurrentLocation`, `getCurrentWeather`, `playMusic`. Consider the user request "Play music that fit's the mood of the weather". For this, the agent needs to know the current location, based on which it can get the the current weather, which it can use to select a relevant song, and then use the playMusic tool.
 
-Example output:
+**Example output:**
 
 ```
 > Play music that fit's the mood of the weather
