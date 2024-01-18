@@ -36,7 +36,7 @@ Workflow agents have a state and can perform a sequence of actions. But this seq
 
 ### RAG is a workflow agent
 
-A RAG system (retrieval augmented generation) can be seen as a workflow agent. It typically performs query rewrite, retrieves relevant documents, and then generates a response. More involved RAG systems have many more steps. This is the core of [Sana AI](https://sana.ai/), that I'm involved in building at [Sana Labs](https://sanalabs.com/). We have an extremely advanced RAG and are working on making it even more general, and adding more general agent capabilities.
+A RAG system (retrieval augmented generation) can be seen as a workflow agent. It typically performs query rewrite, retrieves relevant documents, and then generates a response. More involved RAG systems have many more steps. This is the core of [Sana AI](https://sana.ai/), that I'm involved in building at [Sana Labs](https://sanalabs.com/). We have a very advanced RAG and are working on adding more general agent capabilities.
 
 ### General agents
 
