@@ -1,3 +1,5 @@
+![](../assets/llm-agents.png)
+
 # LLM Agents: Overview and implementation
 
 In this article, we explore LLM Agents. A popular idea having emerged from the capabilities of LLMs.
