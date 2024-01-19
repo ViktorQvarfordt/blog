@@ -1,3 +1,12 @@
+[Published LinkedIn article](https://www.linkedin.com/posts/viktor-qvarfordt_agent-llm-tools-state-i-was-live-coding-activity-7153995300280401920-Dp6K)
+
+Agent = LLM + Tools + State
+
+I was live coding agents with Anton Osika yesterday at Stockholm AI. This article contains the writeup and everything you need to know about LLM Agents.
+
+Including ~100 lines of code to run a general LLM agent as a command line tool.
+
+
 ![](../assets/llm-agents.png)
 
 # LLM Agents: Overview and implementation
