@@ -75,7 +75,7 @@ Practical use of agents in production typically involves combining these APIs ma
 
 ### Code
 
-See the [GitHub repository](github.com/viktorqvarfordt/llm-agent-demo) for full code and runnable exampel. It's about 150 lines of code to orchestrate the agent and to build a CLI for interacting with it.
+See the [GitHub repository](https://github.com/viktorqvarfordt/llm-agent-demo) for full code and runnable exampel. It's about 150 lines of code to orchestrate the agent and to build a CLI for interacting with it.
 
 The agent is hooked up with some simple tools: `getCurrentLocation`, `getCurrentWeather`, `playMusic`. Consider the user request "Play music that fit's the mood of the weather". For this, the agent needs to know the current location, based on which it can get the the current weather, which it can use to select a relevant song, and then use the playMusic tool.
 
