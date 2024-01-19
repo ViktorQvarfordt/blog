@@ -17,11 +17,11 @@ What do we exactly mean by an agent? And how do we implement them? This is what 
 
 ## Definition of an LLM Agent
 
-### LLM Agent = LLM + State + Tools
+### LLM Agent = LLM + Tools + State
 
 * The **LLM** component has the reasoning abilities to select the right action in a given situation. An action can be to respond with a message or to use a tool. E.g. GPT4.
-* The **State** component is the agents memory of previous messages and results from used tools. E.g. stored in a database.
 * The **Tools (aka. Actions)** component is the agents ability to interact with the external world. E.g. API calls to other systems and services.
+* The **State** component is the agents memory of previous messages and results from used tools. E.g. stored in a database.
 
 Agents can be **triggered** by manual user input or by external events. External events can for example be a change in a database, monitoring of an email inbox, or time-based trigger.
 
