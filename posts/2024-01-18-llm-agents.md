@@ -47,11 +47,13 @@ Workflow agents have a state and can perform a sequence of actions. But this seq
 
 A RAG system (retrieval augmented generation) can be seen as a workflow agent. It typically performs query rewrite, retrieves relevant documents, and then generates a response. More involved RAG systems have many more steps. This is the core of [Sana AI](https://sana.ai/), that I'm involved in building at [Sana Labs](https://sanalabs.com/). We have a very advanced RAG and are working on adding more general agent capabilities.
 
-### General agents
+### General recursive agents
 
-General agents have a state and can perform actions both in sequence and in parallel. The actions can be performed in any order, and depends on the input and the state that is being built up as the agent runs. General agents are useful for tasks that require more flexibility and complex reasoning to perform multi-step actions.
+A general recursive agent has a set of tools from with the agent recursively uses one tool until agent decides it is done with its goal/task. The agent has a state that is updated after each tool use. At each step the agent decides what tool to select based on its current state. The tools are used in sequence, but in the most general formulation the tools can be used in parallel.
 
-**Example**: A human is a general agent. A general LLM agent could be a virtual assisstant, capable of performing a wide range of tasks.
+General recursive agents are useful for tasks that require more flexibility and complex reasoning to perform multi-step actions. (But they don't really work, yet.)
+
+**Example:** A human is a general agent. A general LLM agent could be a virtual assistant, capable of performing a wide range of tasks.
 
 ## Why don't we see more general agents in practice?
 
